@@ -1,54 +1,356 @@
 
 (() => {
-  // AUDIO ELEMENTS
-  const playButton = document.getElementById("playButton");
-  const playIcon = document.getElementById("playIcon");
-  const playLabel = document.getElementById("playLabel");
-  const status = document.getElementById("status");
-  const orb = document.getElementById("orb");
+  "use strict";
 
-  const volume = document.getElementById("volume");
-  const volumeValue = document.getElementById("volumeValue");
-  const timer = document.getElementById("timer");
-  const timerState = document.getElementById("timerState");
+  // ELEMENTS
 
-  // STANDBY ELEMENTS
-  const standbyButton = document.getElementById("standbyButton");
-  const standbyScreen = document.getElementById("standbyScreen");
-  const mainApp = document.getElementById("mainApp");
+  const $ = id => document.getElementById(id);
 
-  const clock = document.getElementById("clock");
-  const clockDate = document.getElementById("clockDate");
+  const playButton = $("playButton");
+  const playIcon = $("playIcon");
+  const playLabel = $("playLabel");
+  const status = $("status");
+  const orb = $("orb");
 
-  const photoInput = document.getElementById("photoInput");
-  const uploadPhotos = document.getElementById("uploadPhotos");
-  const standbyPhoto = document.getElementById("standbyPhoto");
-  const emptyPhotos = document.getElementById("emptyPhotos");
+  const volume = $("volume");
+  const volumeValue = $("volumeValue");
+  const timer = $("timer");
+  const timerState = $("timerState");
 
-  const previousPhoto = document.getElementById("previousPhoto");
-  const nextPhoto = document.getElementById("nextPhoto");
-  const exitStandby = document.getElementById("exitStandby");
+  const mainApp = $("mainApp");
+  const standbyScreen = $("standbyScreen");
+  const standbyButton = $("standbyButton");
+  const exitStandby = $("exitStandby");
 
-  // AUDIO STATE
+  const clock = $("clock");
+  const clockDate = $("clockDate");
+
+  const photoInput = $("photoInput");
+  const uploadPhotos = $("uploadPhotos");
+  const standbyPhoto = $("standbyPhoto");
+  const emptyPhotos = $("emptyPhotos");
+
+  const previousPhoto = $("previousPhoto");
+  const nextPhoto = $("nextPhoto");
+
+  // AUDIO
+
   let audioContext = null;
-  let gainNode = null;
-  let noiseNode = null;
+  let masterGain = null;
+  let noiseSource = null;
 
-  let timerId = null;
-  let fadeId = null;
-  let stopAt = 0;
   let playing = false;
+  let timerInterval = null;
+  let fadeTimeout = null;
+  let timerEnd = 0;
 
-  // STANDBY STATE
-  let wakeLock = null;
-  let standbyActive = false;
+  // BROWN NOISE GENERATOR
+
+  function makeBrownNoiseBuffer(ctx, seconds = 20) {
+    const sampleRate = ctx.sampleRate;
+    const length = Math.floor(sampleRate * seconds);
+
+    const buffer = ctx.createBuffer(
+      1,
+      length,
+      sampleRate
+    );
+
+    const data = buffer.getChannelData(0);
+
+    let lastOut = 0;
+    let sum = 0;
+
+    // Leaky integration of white noise produces
+    // a brown-noise spectrum.
+
+    for (let i = 0; i < length; i++) {
+      const white = Math.random() * 2 - 1;
+
+      lastOut = (
+        lastOut + 0.02 * white
+      ) / 1.02;
+
+      data[i] = lastOut;
+      sum += lastOut;
+    }
+
+    // Remove DC offset.
+
+    const mean = sum / length;
+    let squareSum = 0;
+
+    for (let i = 0; i < length; i++) {
+      data[i] -= mean;
+      squareSum += data[i] * data[i];
+    }
+
+    // Normalize RMS volume.
+
+    const rms = Math.sqrt(squareSum / length);
+    const scale = 0.22 / (rms || 1);
+
+    for (let i = 0; i < length; i++) {
+      data[i] = Math.max(
+        -0.95,
+        Math.min(0.95, data[i] * scale)
+      );
+    }
+
+    return buffer;
+  }
+
+  async function startAudio() {
+    try {
+      const AudioContextClass =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+      if (!AudioContextClass) {
+        status.textContent = "Audio is not supported";
+        return;
+      }
+
+      if (!audioContext) {
+        audioContext = new AudioContextClass();
+      }
+
+      if (audioContext.state !== "running") {
+        await audioContext.resume();
+      }
+
+      if (audioContext.state !== "running") {
+        status.textContent = "Tap play to enable audio";
+        return;
+      }
+
+      masterGain = audioContext.createGain();
+
+      masterGain.gain.value =
+        Number(volume.value) / 100 * 0.75;
+
+      // Prevent extremely low frequencies from
+      // consuming unnecessary speaker output.
+
+      const highPass = audioContext.createBiquadFilter();
+      highPass.type = "highpass";
+      highPass.frequency.value = 20;
+      highPass.Q.value = 0.707;
+
+      noiseSource = audioContext.createBufferSource();
+
+      noiseSource.buffer = makeBrownNoiseBuffer(
+        audioContext,
+        20
+      );
+
+      noiseSource.loop = true;
+
+      noiseSource.connect(highPass);
+      highPass.connect(masterGain);
+      masterGain.connect(audioContext.destination);
+
+      noiseSource.start();
+
+      playing = true;
+
+      playIcon.textContent = "Ⅱ";
+      playLabel.textContent = "Pause brown noise";
+      status.textContent = "Playing deep brown noise";
+
+      orb.classList.add("playing");
+
+      setMediaControls();
+      setTimer();
+
+    } catch (error) {
+      console.error("Audio error:", error);
+      status.textContent = "Unable to start audio";
+    }
+  }
+
+  function setMediaControls() {
+    if (!("mediaSession" in navigator)) return;
+    if (!("MediaMetadata" in window)) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: "Brown noise",
+      artist: "Sound Machine"
+    });
+
+    try {
+      navigator.mediaSession.setActionHandler(
+        "play",
+        () => {
+          if (!playing) startAudio();
+        }
+      );
+
+      navigator.mediaSession.setActionHandler(
+        "pause",
+        () => {
+          if (playing) stopAudio();
+        }
+      );
+    } catch (_) {}
+  }
+
+  function clearTimers() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    if (fadeTimeout) {
+      clearTimeout(fadeTimeout);
+      fadeTimeout = null;
+    }
+  }
+
+  function stopAudio() {
+    clearTimers();
+
+    if (noiseSource) {
+      try {
+        noiseSource.stop();
+      } catch (_) {}
+
+      noiseSource.disconnect();
+      noiseSource = null;
+    }
+
+    if (masterGain) {
+      masterGain.disconnect();
+      masterGain = null;
+    }
+
+    playing = false;
+
+    playIcon.textContent = "▶";
+    playLabel.textContent = "Play brown noise";
+
+    status.textContent = "Ready when you are";
+    orb.classList.remove("playing");
+
+    timerState.textContent = "Off";
+  }
+
+  playButton.addEventListener("click", async () => {
+    if (playing) {
+      stopAudio();
+    } else {
+      await startAudio();
+    }
+  });
+
+  // VOLUME
+
+  volume.addEventListener("input", () => {
+    const value = Number(volume.value);
+
+    volumeValue.textContent = `${value}%`;
+
+    if (masterGain && audioContext) {
+      masterGain.gain.setTargetAtTime(
+        value / 100 * 0.75,
+        audioContext.currentTime,
+        0.04
+      );
+    }
+  });
+
+  // SLEEP TIMER
+
+  function setTimer() {
+    clearTimers();
+
+    if (!playing) {
+      timerState.textContent = "Off";
+      return;
+    }
+
+    const minutes = Number(timer.value);
+
+    if (!minutes) {
+      timerState.textContent = "Off";
+      return;
+    }
+
+    timerEnd = Date.now() + minutes * 60000;
+
+    timerInterval = setInterval(() => {
+      const remaining = timerEnd - Date.now();
+
+      if (remaining <= 10000) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+
+        if (masterGain && audioContext) {
+          const now = audioContext.currentTime;
+
+          masterGain.gain.cancelScheduledValues(now);
+
+          masterGain.gain.setValueAtTime(
+            masterGain.gain.value,
+            now
+          );
+
+          masterGain.gain.linearRampToValueAtTime(
+            0,
+            now + 10
+          );
+        }
+
+        status.textContent = "Fading out";
+
+        fadeTimeout = setTimeout(stopAudio, 10100);
+
+      } else {
+        timerState.textContent =
+          `${Math.ceil(remaining / 60000)} min left`;
+      }
+    }, 1000);
+
+    timerState.textContent = `${minutes} min`;
+  }
+
+  timer.addEventListener("change", setTimer);
+
+  // CLOCK
+
+  function updateClock() {
+    const now = new Date();
+
+    clock.textContent = now.toLocaleTimeString(
+      undefined,
+      {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      }
+    );
+
+    clockDate.textContent = now.toLocaleDateString(
+      undefined,
+      {
+        weekday: "long",
+        month: "long",
+        day: "numeric"
+      }
+    ).toUpperCase();
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // PHOTO DATABASE
+
+  const DB_NAME = "BrownNoiseDatabase";
+  const STORE_NAME = "photos";
+
   let photos = [];
   let currentPhoto = 0;
   let photoURL = null;
-
-  // DATABASE
-  const DB_NAME = "BrownNoiseDatabase";
-  const STORE_NAME = "photos";
 
   function openDatabase() {
     return new Promise((resolve, reject) => {
@@ -70,7 +372,7 @@
     });
   }
 
-  async function savePhoto(blob, name) {
+  async function savePhoto(file) {
     const db = await openDatabase();
 
     return new Promise((resolve, reject) => {
@@ -79,18 +381,19 @@
         "readwrite"
       );
 
-      const request = transaction
-        .objectStore(STORE_NAME)
-        .add({
-          blob,
-          name,
-          created: Date.now()
-        });
+      const request = transaction.objectStore(
+        STORE_NAME
+      ).add({
+        blob: file,
+        name: file.name,
+        created: Date.now()
+      });
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
 
       transaction.oncomplete = () => db.close();
+      transaction.onerror = () => db.close();
     });
   }
 
@@ -103,275 +406,17 @@
         "readonly"
       );
 
-      const request = transaction
-        .objectStore(STORE_NAME)
-        .getAll();
+      const request = transaction.objectStore(
+        STORE_NAME
+      ).getAll();
 
-      request.onsuccess = () => {
-        resolve(request.result);
-      };
-
+      request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
 
       transaction.oncomplete = () => db.close();
+      transaction.onerror = () => db.close();
     });
   }
-
-  async function deletePhoto(id) {
-    const db = await openDatabase();
-
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        STORE_NAME,
-        "readwrite"
-      );
-
-      const request = transaction
-        .objectStore(STORE_NAME)
-        .delete(id);
-
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-
-      transaction.oncomplete = () => db.close();
-    });
-  }
-
-  // BROWN NOISE GENERATOR
-
-  function makeBrownNoiseBuffer(ctx, seconds = 8) {
-    const length = Math.floor(
-      ctx.sampleRate * seconds
-    );
-
-    const buffer = ctx.createBuffer(
-      1,
-      length,
-      ctx.sampleRate
-    );
-
-    const data = buffer.getChannelData(0);
-    let lastOut = 0;
-
-    for (let i = 0; i < length; i++) {
-      const white = Math.random() * 2 - 1;
-
-      lastOut = (
-        lastOut + 0.02 * white
-      ) / 1.02;
-
-      data[i] = lastOut * 3.5;
-    }
-
-    return buffer;
-  }
-
-  async function startAudio() {
-    const AudioContextClass =
-      window.AudioContext ||
-      window.webkitAudioContext;
-
-    if (!AudioContextClass) {
-      status.textContent = "Audio unsupported";
-      return;
-    }
-
-    audioContext =
-      audioContext || new AudioContextClass();
-
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
-    }
-
-    gainNode = audioContext.createGain();
-
-    gainNode.gain.value =
-      Number(volume.value) / 100 * 0.75;
-
-    gainNode.connect(audioContext.destination);
-
-    noiseNode = audioContext.createBufferSource();
-
-    noiseNode.buffer = makeBrownNoiseBuffer(
-      audioContext
-    );
-
-    noiseNode.loop = true;
-    noiseNode.connect(gainNode);
-    noiseNode.start();
-
-    playing = true;
-
-    playIcon.textContent = "Ⅱ";
-    playLabel.textContent = "Pause brown noise";
-
-    status.textContent = "Playing deep brown noise";
-
-    orb.classList.add("playing");
-
-    if ("mediaSession" in navigator &&
-        "MediaMetadata" in window) {
-
-      navigator.mediaSession.metadata =
-        new MediaMetadata({
-          title: "Brown noise",
-          artist: "Sound Machine"
-        });
-
-      try {
-        navigator.mediaSession.setActionHandler(
-          "play",
-          () => {
-            if (!playing) startAudio();
-          }
-        );
-
-        navigator.mediaSession.setActionHandler(
-          "pause",
-          () => {
-            if (playing) stopAudio();
-          }
-        );
-      } catch (_) {}
-    }
-
-    setTimer();
-  }
-
-  function clearTimers() {
-    if (timerId) clearInterval(timerId);
-    if (fadeId) clearTimeout(fadeId);
-
-    timerId = null;
-    fadeId = null;
-  }
-
-  function stopAudio() {
-    clearTimers();
-
-    if (noiseNode) {
-      try {
-        noiseNode.stop();
-      } catch (_) {}
-
-      noiseNode.disconnect();
-      noiseNode = null;
-    }
-
-    if (gainNode) {
-      gainNode.disconnect();
-      gainNode = null;
-    }
-
-    playing = false;
-
-    playIcon.textContent = "▶";
-    playLabel.textContent = "Play brown noise";
-
-    status.textContent = "Ready when you are";
-
-    orb.classList.remove("playing");
-
-    timerState.textContent = "Off";
-  }
-
-  function setTimer() {
-    clearTimers();
-
-    const minutes = Number(timer.value);
-
-    if (!minutes || !playing) {
-      timerState.textContent = "Off";
-      return;
-    }
-
-    stopAt = Date.now() + minutes * 60000;
-
-    timerState.textContent = `${minutes} min`;
-
-    timerId = setInterval(() => {
-      const remaining = stopAt - Date.now();
-
-      if (remaining <= 10000) {
-        clearInterval(timerId);
-        timerId = null;
-
-        if (gainNode && audioContext) {
-          const now = audioContext.currentTime;
-
-          gainNode.gain.cancelScheduledValues(now);
-
-          gainNode.gain.setValueAtTime(
-            gainNode.gain.value,
-            now
-          );
-
-          gainNode.gain.linearRampToValueAtTime(
-            0,
-            now + 10
-          );
-        }
-
-        status.textContent = "Fading out…";
-
-        fadeId = setTimeout(stopAudio, 10100);
-
-      } else {
-        timerState.textContent =
-          `${Math.ceil(remaining / 60000)} min left`;
-      }
-    }, 1000);
-  }
-
-  playButton.addEventListener("click", async () => {
-    if (playing) {
-      stopAudio();
-    } else {
-      await startAudio();
-    }
-  });
-
-  volume.addEventListener("input", () => {
-    volumeValue.textContent = `${volume.value}%`;
-
-    if (gainNode && audioContext) {
-      gainNode.gain.setTargetAtTime(
-        Number(volume.value) / 100 * 0.75,
-        audioContext.currentTime,
-        0.04
-      );
-    }
-  });
-
-  timer.addEventListener("change", setTimer);
-
-  // CLOCK
-
-  function updateClock() {
-    const now = new Date();
-
-    clock.textContent = now.toLocaleTimeString(
-      undefined,
-      {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true
-      }
-    );
-
-    clockDate.textContent = now
-      .toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "long",
-        day: "numeric"
-      })
-      .toUpperCase();
-  }
-
-  updateClock();
-  setInterval(updateClock, 1000);
-
-  // PHOTO DISPLAY
 
   function displayPhoto() {
     if (photoURL) {
@@ -379,7 +424,7 @@
       photoURL = null;
     }
 
-    if (photos.length === 0) {
+    if (!photos.length) {
       standbyPhoto.hidden = true;
       emptyPhotos.hidden = false;
       return;
@@ -397,9 +442,15 @@
   async function refreshPhotos() {
     try {
       photos = await loadPhotos();
+
+      if (currentPhoto >= photos.length) {
+        currentPhoto = 0;
+      }
+
       displayPhoto();
+
     } catch (error) {
-      console.error("Could not load photos:", error);
+      console.error("Photo loading error:", error);
     }
   }
 
@@ -414,16 +465,19 @@
       if (!file.type.startsWith("image/")) continue;
 
       try {
-        await savePhoto(file, file.name);
+        await savePhoto(file);
       } catch (error) {
-        console.error("Could not save photo:", error);
-        alert("Could not save this photo. Storage may be full.");
+        console.error("Photo save error:", error);
+
+        alert(
+          "Unable to save the photo. Browser storage may be full."
+        );
+
         break;
       }
     }
 
     photoInput.value = "";
-
     await refreshPhotos();
   });
 
@@ -445,14 +499,37 @@
     displayPhoto();
   });
 
-  // SCREEN WAKE LOCK
+  // AUTOMATIC SLIDESHOW
+
+  let slideshowInterval = null;
+
+  function startSlideshow() {
+    clearInterval(slideshowInterval);
+
+    slideshowInterval = setInterval(() => {
+      if (photos.length > 1) {
+        currentPhoto = (currentPhoto + 1) % photos.length;
+        displayPhoto();
+      }
+    }, 30000);
+  }
+
+  function stopSlideshow() {
+    clearInterval(slideshowInterval);
+    slideshowInterval = null;
+  }
+
+  // STANDBY / WAKE LOCK
+
+  let wakeLock = null;
+  let standbyActive = false;
 
   async function requestWakeLock() {
-    if (!("wakeLock" in navigator)) {
-      return;
-    }
+    if (!("wakeLock" in navigator)) return;
 
     try {
+      if (wakeLock) return;
+
       wakeLock = await navigator.wakeLock.request("screen");
 
       wakeLock.addEventListener("release", () => {
@@ -465,23 +542,14 @@
   }
 
   async function releaseWakeLock() {
-    if (wakeLock) {
-      try {
-        await wakeLock.release();
-      } catch (_) {}
+    if (!wakeLock) return;
 
-      wakeLock = null;
-    }
+    try {
+      await wakeLock.release();
+    } catch (_) {}
+
+    wakeLock = null;
   }
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" &&
-        standbyActive) {
-      requestWakeLock();
-    }
-  });
-
-  // ENTER STANDBY
 
   standbyButton.addEventListener("click", async () => {
     standbyActive = true;
@@ -492,25 +560,36 @@
     document.body.classList.add("standby-mode");
 
     await refreshPhotos();
+    startSlideshow();
     await requestWakeLock();
   });
 
-  // EXIT STANDBY
-
   exitStandby.addEventListener("click", async () => {
     standbyActive = false;
+
+    stopSlideshow();
+    await releaseWakeLock();
 
     standbyScreen.hidden = true;
     mainApp.hidden = false;
 
     document.body.classList.remove("standby-mode");
+  });
 
-    await releaseWakeLock();
+  document.addEventListener("visibilitychange", async () => {
+    if (
+      document.visibilityState === "visible" &&
+      standbyActive
+    ) {
+      await requestWakeLock();
+    }
   });
 
   // INITIALIZATION
 
   refreshPhotos();
+
+  // OFFLINE SUPPORT
 
   if ("serviceWorker" in navigator &&
       location.protocol.startsWith("http")) {
@@ -518,7 +597,9 @@
     window.addEventListener("load", () => {
       navigator.serviceWorker.register(
         "./service-worker.js"
-      ).catch(console.error);
+      ).catch(error => {
+        console.error("Service worker error:", error);
+      });
     });
   }
 
