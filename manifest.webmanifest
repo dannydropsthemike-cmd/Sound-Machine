@@ -2,7 +2,7 @@
 {
   "name": "Brown Noise Sound Machine",
   "short_name": "Brown Noise",
-  "description": "A simple brown noise sound machine.",
+  "description": "A minimal brown noise sound machine and bedside clock.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -11,9 +11,10 @@
   "theme_color": "#100a07",
   "icons": [
     {
-      "src": "./icons/apple-touch-icon.png",
+      "src": "./apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
