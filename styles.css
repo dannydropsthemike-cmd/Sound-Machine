@@ -1,7 +1,6 @@
 
 :root {
   color-scheme: dark;
-
   --bg: #100a07;
   --panel: #1b100b;
   --text: #f4e8dc;
@@ -28,7 +27,6 @@ body {
   min-height: 100svh;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-
   background:
     radial-gradient(
       ellipse at 50% 30%,
@@ -36,24 +34,22 @@ body {
       #160d08 42%,
       #0d0806 100%
     );
-
   -webkit-tap-highlight-color: transparent;
 }
 
 button, select {
   font: inherit;
+  cursor: pointer;
 }
 
 .app {
   width: min(100%, 520px);
   min-height: 100svh;
   margin: 0 auto;
-
   padding:
     max(28px, env(safe-area-inset-top))
     25px
     max(24px, env(safe-area-inset-bottom));
-
   display: flex;
   flex-direction: column;
 }
@@ -67,13 +63,10 @@ button, select {
 .brand-mark {
   width: 43px;
   height: 43px;
-
   display: grid;
   place-items: center;
-
   border: 1px solid #69432c;
   border-radius: 14px;
-
   color: var(--accent);
   font-size: 28px;
   background: #21130c;
@@ -97,37 +90,29 @@ h1 {
 .player {
   flex: 1;
   min-height: 350px;
-
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
   padding: 25px 0;
 }
 
 .orb {
   width: min(66vw, 270px);
   aspect-ratio: 1;
-
   position: relative;
   display: grid;
   place-items: center;
-
   border-radius: 50%;
-
-  background:
-    radial-gradient(
-      circle,
-      #4a2918 0%,
-      #2b170e 48%,
-      #170d08 72%
-    );
-
+  background: radial-gradient(
+    circle,
+    #4a2918 0%,
+    #2b170e 48%,
+    #170d08 72%
+  );
   box-shadow:
     0 0 80px #9b55251c,
     inset 0 0 45px #d18a3920;
-
   transition: transform .5s ease;
 }
 
@@ -148,7 +133,6 @@ h1 {
   font-size: 94px;
   line-height: 1;
   font-weight: 300;
-  transform: translateY(-7px);
 }
 
 .orb.playing {
@@ -156,13 +140,8 @@ h1 {
 }
 
 @keyframes breathe {
-  0%, 100% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.035);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.035); }
 }
 
 .status {
@@ -174,26 +153,17 @@ h1 {
 .play-button {
   min-height: 58px;
   width: min(100%, 300px);
-
   border: 0;
   border-radius: 18px;
-
-  background: linear-gradient(
-    135deg,
-    #d69b6d,
-    #ad7046
-  );
-
+  background: linear-gradient(135deg, #d69b6d, #ad7046);
   color: #1b100b;
   font-size: 16px;
   font-weight: 700;
-
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-
-  cursor: pointer;
+  box-shadow: 0 8px 28px #0005;
 }
 
 .play-button:active {
@@ -211,7 +181,6 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-
   font-size: 14px;
   font-weight: 600;
 }
@@ -236,10 +205,8 @@ select {
   width: 100%;
   min-height: 49px;
   padding: 0 14px;
-
   border-radius: 12px;
   border: 1px solid #493020;
-
   background: #24160f;
   color: var(--text);
 }
@@ -254,15 +221,11 @@ select {
   width: 100%;
   min-height: 50px;
   margin-top: 18px;
-
   background: #21140d;
   color: #d3ae8e;
-
   border: 1px solid #493020;
   border-radius: 14px;
-
   font-size: 14px;
-  cursor: pointer;
 }
 
 .standby-entry span {
@@ -276,7 +239,7 @@ footer {
   padding-top: 22px;
 }
 
-/* STANDBY MODE */
+/* STANDBY */
 
 body.standby-mode {
   background: #050505;
@@ -286,20 +249,14 @@ body.standby-mode {
 .standby {
   width: 100%;
   height: 100svh;
-
   min-height: 100svh;
-
   display: grid;
   grid-template-columns: 1fr 1fr;
-
-  gap: 0;
-
   padding:
     max(14px, env(safe-area-inset-top))
     max(14px, env(safe-area-inset-right))
     max(14px, env(safe-area-inset-bottom))
     max(14px, env(safe-area-inset-left));
-
   background: #050505;
   color: #a99b8e;
 }
@@ -307,14 +264,11 @@ body.standby-mode {
 .photo-panel {
   min-width: 0;
   min-height: 0;
-
   position: relative;
   overflow: hidden;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: #0b0a09;
   border-radius: 8px;
 }
@@ -322,11 +276,9 @@ body.standby-mode {
 #standbyPhoto {
   width: 100%;
   height: 100%;
-
   object-fit: contain;
   position: absolute;
   inset: 0;
-
   opacity: .68;
 }
 
@@ -349,13 +301,10 @@ body.standby-mode {
   position: absolute;
   bottom: 12px;
   left: 50%;
-
   transform: translateX(-50%);
-
   display: flex;
   align-items: center;
   gap: 8px;
-
   opacity: .25;
   transition: opacity .3s ease;
 }
@@ -368,25 +317,21 @@ body.standby-mode {
 .photo-controls button {
   border: 0;
   border-radius: 10px;
-
   background: #16120f;
   color: #b5a18e;
-
   padding: 9px 12px;
   font-size: 14px;
 }
 
-.photo-controls button:active {
+.photo-panel button:active {
   background: #302219;
 }
 
 .clock-panel {
   position: relative;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 10px;
 }
 
@@ -397,21 +342,16 @@ body.standby-mode {
 
 .clock {
   color: #b6a18d;
-
   font-size: clamp(34px, 8vw, 90px);
   font-weight: 300;
-
   letter-spacing: -.07em;
   font-variant-numeric: tabular-nums;
-
   white-space: nowrap;
 }
 
 .clock-date {
   margin-top: 14px;
-
   color: #51473e;
-
   font-size: clamp(8px, 1.5vw, 12px);
   letter-spacing: .16em;
   font-weight: 500;
@@ -421,15 +361,11 @@ body.standby-mode {
   position: absolute;
   bottom: 12px;
   right: 12px;
-
   padding: 8px 12px;
-
   border: 0;
   border-radius: 9px;
-
   color: #51473e;
   background: transparent;
-
   font-size: 11px;
   opacity: .3;
 }
@@ -441,30 +377,13 @@ body.standby-mode {
 }
 
 @media (max-width: 380px) {
-  .standby {
-    grid-template-columns: 1fr 1fr;
-    padding: 9px;
-  }
-
-  .clock {
-    font-size: clamp(30px, 8vw, 48px);
-  }
-
-  .photo-controls {
-    gap: 3px;
-  }
-
-  .photo-controls button {
-    padding: 8px;
-  }
+  .standby { padding: 9px; }
+  .clock { font-size: clamp(30px, 8vw, 48px); }
+  .photo-controls { gap: 3px; }
+  .photo-controls button { padding: 8px; }
 }
 
 @media (max-height: 500px) {
-  .orb {
-    width: 155px;
-  }
-
-  .player {
-    min-height: 250px;
-  }
+  .orb { width: 155px; }
+  .player { min-height: 250px; }
 }
