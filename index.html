@@ -12,7 +12,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Brown Noise">
 
-  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="./apple-touch-icon.png">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./styles.css">
 
@@ -25,7 +26,6 @@
 
     <header class="top">
       <div class="brand-mark">〰</div>
-
       <div>
         <p class="eyebrow">SOUND MACHINE</p>
         <h1>Brown noise</h1>
@@ -40,9 +40,7 @@
         <div class="wave">〜</div>
       </div>
 
-      <p class="status" id="status">
-        Ready when you are
-      </p>
+      <p class="status" id="status">Ready when you are</p>
 
       <button class="play-button" id="playButton">
         <span id="playIcon">▶</span>
@@ -81,20 +79,15 @@
         <option value="120">2 hours</option>
       </select>
 
-      <p class="hint">
-        The timer fades the sound out gently.
-      </p>
+      <p class="hint">The timer fades the sound out gently.</p>
 
     </section>
 
     <button class="standby-entry" id="standbyButton">
-      <span>◷</span>
-      Enter standby mode
+      <span>◷</span> Enter standby mode
     </button>
 
-    <footer>
-      Deep, continuous brown noise
-    </footer>
+    <footer>Deep, continuous brown noise</footer>
 
   </main>
 
@@ -104,11 +97,7 @@
 
     <section class="photo-panel">
 
-      <img
-        id="standbyPhoto"
-        alt="Standby photo"
-        hidden
-      >
+      <img id="standbyPhoto" alt="Standby photo" hidden>
 
       <div class="empty-photos" id="emptyPhotos">
         <span>＋</span>
@@ -117,11 +106,7 @@
 
       <div class="photo-controls">
         <button id="previousPhoto" aria-label="Previous photo">‹</button>
-
-        <button id="uploadPhotos">
-          <span>＋</span> Photos
-        </button>
-
+        <button id="uploadPhotos">＋ Photos</button>
         <button id="nextPhoto" aria-label="Next photo">›</button>
       </div>
 
@@ -138,21 +123,11 @@
     <section class="clock-panel">
 
       <div class="clock-content">
-
-        <div id="clock" class="clock">
-          00:00
-        </div>
-
-        <div id="clockDate" class="clock-date">
-          MONDAY, JANUARY 1
-        </div>
-
+        <div id="clock" class="clock">12:00 AM</div>
+        <div id="clockDate" class="clock-date"></div>
       </div>
 
-      <button
-        id="exitStandby"
-        class="exit-standby"
-      >
+      <button id="exitStandby" class="exit-standby">
         Exit
       </button>
 
